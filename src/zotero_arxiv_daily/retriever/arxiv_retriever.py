@@ -13,12 +13,18 @@ from time import sleep
 from typing import Any, Callable, TypeVar
 from loguru import logger
 import requests
+import re
 
 T = TypeVar("T")
 
 DOWNLOAD_TIMEOUT = (10, 60)
 PDF_EXTRACT_TIMEOUT = 180
 TAR_EXTRACT_TIMEOUT = 180
+CODE_URL_RE = re.compile(
+    r"https?://(?:github\.com|gitlab\.com|bitbucket\.org|huggingface\.co|zenodo\.org|"
+    r"anonymous\.4open\.science|paperswithcode\.com)/[^\s\]\)\}\"'<>]+",
+    re.IGNORECASE,
+)
 
 
 def _download_file(url: str, path: str) -> None:
@@ -28,6 +34,15 @@ def _download_file(url: str, path: str) -> None:
             for chunk in response.iter_content(chunk_size=1024 * 1024):
                 if chunk:
                     file.write(chunk)
+
+
+def find_code_url(text: str | None) -> str | None:
+    if not text:
+        return None
+    match = CODE_URL_RE.search(text)
+    if not match:
+        return None
+    return match.group(0).rstrip(".,;:")
 
 
 def _run_in_subprocess(
@@ -166,6 +181,7 @@ class ArxivRetriever(BaseRetriever):
             full_text = extract_text_from_html(raw_paper)
         if full_text is None:
             full_text = extract_text_from_pdf(raw_paper)
+        code_url = find_code_url("\n".join([abstract or "", full_text or ""]))
         return Paper(
             source=self.name,
             title=title,
@@ -173,6 +189,7 @@ class ArxivRetriever(BaseRetriever):
             abstract=abstract,
             url=raw_paper.entry_id,
             pdf_url=pdf_url,
+            code_url=code_url,
             full_text=full_text,
         )
 
