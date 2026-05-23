@@ -1,7 +1,15 @@
 zotero:
   user_id: ${oc.env:ZOTERO_ID}
   api_key: ${oc.env:ZOTERO_KEY}
-  include_path: null # Or set a list of glob patterns, e.g. ["2026/survey/**","2026/reading-group/**"]
+  include_path:
+    - "Agents/**"
+    - "LLM Agents/**"
+    - "Tool Use/**"
+    - "Skill Learning/**"
+    - "Agent Evaluation/**"
+  ignore_path:
+    - "Ignore/**"
+    - "Archive/**"
 
 email:
   sender: ${oc.env:SENDER}
@@ -15,12 +23,39 @@ llm:
     key: ${oc.env:OPENAI_API_KEY}
     base_url: ${oc.env:OPENAI_API_BASE}
   generation_kwargs:
-    model: gpt-4o-mini
+    model: deepseek-chat
+    max_tokens: 2048
+  language: Chinese
+  summary_prompt: |
+    你是一个面向 LLM agents / tool use / skill learning / workflow automation / agent evaluation 方向研究者的论文雷达助手。
+    请根据论文标题、摘要、正文预览和相似度分数，用中文生成简洁但可判断是否值得阅读的摘要。
+
+    研究兴趣优先级：
+    - LLM agents, 大模型智能体, tool use, function calling, tool learning
+    - skill learning, skill transfer, self-evolving agents, self-improving agents
+    - agent workflow, workflow automation, code agents, multi-agent systems
+    - agent evaluation, agent benchmark, agent reliability
+    - LLM systems, API schema / tool schema / execution mismatch
+
+    需要降低优先级的方向：
+    - 纯 CV、纯图像生成、纯医学影像、纯机器人、纯语音、纯 diffusion、纯硬件加速
+
+    请严格按以下字段输出，每个字段 1-2 句，整体不要过长：
+    相关性判断：小同行 / 中同行 / 大同行 / 可忽略
+    一句话总结：
+    方法简介：
+    实验简介：
+    阅读建议：精读 / 泛读 / 存 Zotero / 忽略
+    可学习点：
 
 source:
   arxiv:
-    category: ["cs.AI","cs.CV","cs.LG","cs.CL"]
+    category: ["cs.CL","cs.AI","cs.LG","cs.SE"]
+    include_cross_list: false
 
 executor:
   debug: ${oc.env:DEBUG,null}
+  send_empty: false
+  max_paper_num: 15
   source: ['arxiv']
+  reranker: local
