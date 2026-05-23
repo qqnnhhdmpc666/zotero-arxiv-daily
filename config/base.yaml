@@ -29,6 +29,7 @@ llm:
     max_tokens: 16384
     model: ???
   language: English # Preferred language for the TL;DR. Example: English
+  summary_prompt: null # Optional custom prompt for paper summary. If null, a concise one-sentence TLDR prompt is used.
 
 reranker:
   local:
@@ -39,7 +40,7 @@ reranker:
       prompt_name: document
   api:
     key: null # API Key of your embedding model API. Example: sk-xxx
-    base_url: null # API URL of your embedding model API. Example: https://api.openai.com/v1
+    base_url: null # API URL of the embedding model API. Example: https://api.openai.com/v1
     model: null # The model name of the embedding model. Example: text-embedding-3-large
     batch_size: null # The batch size for embedding API requests. Adjust to match your provider's limit. Example: 64
 
