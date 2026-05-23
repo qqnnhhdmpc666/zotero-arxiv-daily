@@ -1,5 +1,6 @@
 from .protocol import Paper
 import math
+from html import escape
 
 
 framework = """
@@ -52,7 +53,31 @@ def get_empty_html():
   """
   return block_template
 
-def get_block_html(title:str, authors:str, rate:str, tldr:str, pdf_url:str, affiliations:str=None):
+
+def get_relevance_label(score:float | None):
+    if score is None:
+        return "Unknown"
+    if score >= 7.5:
+        return "小同行"
+    if score >= 6.5:
+        return "中同行"
+    if score >= 5.5:
+        return "大同行"
+    return "可忽略"
+
+
+def format_summary(summary:str | None):
+    if not summary:
+        return "No summary generated."
+    return "<br>".join(escape(summary).splitlines())
+
+
+def get_block_html(title:str, authors:str, rate:str, tldr:str, pdf_url:str, affiliations:str=None, paper_url:str=None, code_url:str=None):
+    code_button = ''
+    if code_url:
+        code_button = f"""
+            <a href="{escape(code_url)}" style="display: inline-block; text-decoration: none; font-size: 14px; font-weight: bold; color: #fff; background-color: #0275d8; padding: 8px 16px; border-radius: 4px; margin-left: 8px;">Code</a>
+        """
     block_template = """
     <table border="0" cellpadding="0" cellspacing="0" width="100%" style="font-family: Arial, sans-serif; border: 1px solid #ddd; border-radius: 8px; padding: 16px; background-color: #f9f9f9;">
     <tr>
@@ -80,12 +105,23 @@ def get_block_html(title:str, authors:str, rate:str, tldr:str, pdf_url:str, affi
 
     <tr>
         <td style="padding: 8px 0;">
+            <a href="{paper_url}" style="display: inline-block; text-decoration: none; font-size: 14px; font-weight: bold; color: #fff; background-color: #5cb85c; padding: 8px 16px; border-radius: 4px; margin-right: 8px;">arXiv</a>
             <a href="{pdf_url}" style="display: inline-block; text-decoration: none; font-size: 14px; font-weight: bold; color: #fff; background-color: #d9534f; padding: 8px 16px; border-radius: 4px;">PDF</a>
+            {code_button}
         </td>
     </tr>
 </table>
 """
-    return block_template.format(title=title, authors=authors,rate=rate, tldr=tldr, pdf_url=pdf_url, affiliations=affiliations)
+    return block_template.format(
+        title=escape(title),
+        authors=escape(authors),
+        rate=escape(str(rate)),
+        tldr=format_summary(tldr),
+        pdf_url=escape(pdf_url or ""),
+        paper_url=escape(paper_url or ""),
+        code_button=code_button,
+        affiliations=escape(affiliations or ""),
+    )
 
 def get_stars(score:float):
     full_star = '<span class="full-star">⭐</span>'
@@ -110,8 +146,7 @@ def render_email(papers:list[Paper]) -> str:
         return framework.replace('__CONTENT__', get_empty_html())
     
     for p in papers:
-        #rate = get_stars(p.score)
-        rate = round(p.score, 1) if p.score is not None else 'Unknown'
+        rate = get_relevance_label(p.score)
         author_list = [a for a in p.authors]
         num_authors = len(author_list)
         if num_authors <= 5:
@@ -125,7 +160,7 @@ def render_email(papers:list[Paper]) -> str:
                 affiliations += ', ...'
         else:
             affiliations = 'Unknown Affiliation'
-        parts.append(get_block_html(p.title, authors, rate, p.tldr, p.pdf_url, affiliations))
+        parts.append(get_block_html(p.title, authors, rate, p.tldr, p.pdf_url, affiliations, p.url, p.code_url))
 
     content = '<br>' + '</br><br>'.join(parts) + '</br>'
     return framework.replace('__CONTENT__', content)
