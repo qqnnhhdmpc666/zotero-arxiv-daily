@@ -16,6 +16,7 @@ class Paper:
     abstract: str
     url: str
     pdf_url: Optional[str] = None
+    code_url: Optional[str] = None
     full_text: Optional[str] = None
     tldr: Optional[str] = None
     affiliations: Optional[list[str]] = None
@@ -23,7 +24,12 @@ class Paper:
 
     def _generate_tldr_with_llm(self, openai_client:OpenAI,llm_params:dict) -> str:
         lang = llm_params.get('language', 'English')
-        prompt = f"Given the following information of a paper, generate a one-sentence TLDR summary in {lang}:\n\n"
+        summary_prompt = llm_params.get('summary_prompt')
+        score_text = f"{self.score:.2f}" if self.score is not None else "Unknown"
+        if summary_prompt:
+            prompt = f"{summary_prompt}\n\nSimilarity score: {score_text}\n\n"
+        else:
+            prompt = f"Given the following information of a paper, generate a one-sentence TLDR summary in {lang}:\n\n"
         if self.title:
             prompt += f"Title:\n {self.title}\n\n"
 
@@ -32,6 +38,9 @@ class Paper:
 
         if self.full_text:
             prompt += f"Preview of main content:\n {self.full_text}\n\n"
+
+        if self.code_url:
+            prompt += f"Detected code link:\n {self.code_url}\n\n"
 
         if not self.full_text and not self.abstract:
             logger.warning(f"Neither full text nor abstract is provided for {self.url}")
@@ -47,7 +56,7 @@ class Paper:
             messages=[
                 {
                     "role": "system",
-                    "content": f"You are an assistant who perfectly summarizes scientific paper, and gives the core idea of the paper to the user. Your answer should be in {lang}.",
+                    "content": f"You are an assistant who summarizes scientific papers for fast triage. Your answer should be in {lang}.",
                 },
                 {"role": "user", "content": prompt},
             ],
