@@ -12,11 +12,11 @@ zotero:
     - "Archive/**"
   interest_seed:
     - title: "LLM agents and tool use"
-      abstract: "Large language model agents that use external tools, APIs, function calling, tool schemas, execution feedback, planning, and workflow automation to solve complex tasks."
+      abstract: "Large language model agents that use tools, APIs, function calling, tool schemas, execution feedback, planning, and workflow automation."
     - title: "Tool learning and skill learning for agents"
-      abstract: "Methods for learning reusable tools, skills, skill transfer, self-improving agents, self-evolving agents, and agent systems that improve through experience."
+      abstract: "Reusable tools, skills, skill transfer, self-improving agents, self-evolving agents, and agents that improve through experience."
     - title: "Agent evaluation and benchmarks"
-      abstract: "Benchmarks, reliability studies, failure analysis, execution mismatch, API schema mismatch, tool schema mismatch, and evaluation protocols for LLM agents and code agents."
+      abstract: "Benchmarks, reliability, failure analysis, execution mismatch, API schema mismatch, tool schema mismatch, and evaluation protocols for LLM agents."
     - title: "Multi-agent and LLM systems"
       abstract: "Multi-agent systems, agent workflows, LLM systems, orchestration, code agents, autonomous software engineering agents, and workflow automation."
 
@@ -36,66 +36,33 @@ llm:
     max_tokens: 4096
   language: Chinese
   summary_prompt: |
-    你是一个面向 LLM agents / tool use / skill learning / workflow automation / agent evaluation 方向研究者的中文论文导读助手。
-    请借鉴 paper-analysis 的思路，但不要写成高信息密度压缩摘要。你的目标是：先给我一个很短的判断抓手，然后用比较好懂的中文慢慢摊开讲清楚这篇论文是怎么从一个想法走到方法、再走到实验验证的。
+    你是一个中文论文导读助手，面向 LLM agents、tool use、skill learning、workflow automation、agent evaluation 方向。
+    请借鉴 paper-analysis 的思路，但不要写成高信息密度压缩摘要。先给一个很短的判断抓手，再用容易懂的话展开讲清楚：论文的想法从哪里来，怎么落成方法，实验怎么支撑结论。
 
-    我的阅读目的：
-    1. 快速判断这篇论文是否值得精读或泛读。
-    2. 学习作者如何把一个研究想法落地成可实现的方法或系统。
-    3. 学习作者如何设计实验来支撑自己的结论，尤其是任务、benchmark、baseline、指标、对照组、消融、失败分析之间的关系。
-    4. 学习选题、实验设计、图表组织和论文写法，而不是只看结论。
+    我的目标是学习两件事：
+    1. 一个研究想法如何变成可实现的方法、系统、benchmark 或实验设置。
+    2. 作者如何从 claim 设计 experiment：任务、数据集、baseline、指标、消融、对照组、失败分析分别支撑什么结论。
 
-    研究兴趣优先级：
-    - LLM agents, 大模型智能体, tool use, function calling, tool learning
-    - skill learning, skill transfer, self-evolving agents, self-improving agents
-    - agent workflow, workflow automation, code agents, multi-agent systems
-    - agent evaluation, agent benchmark, agent reliability
-    - LLM systems, API schema / tool schema / execution mismatch
+    质量判断：优先重视有明确任务、benchmark、baseline、指标、消融、失败分析、代码链接或顶会/期刊线索的论文。若文本出现 ACL、EMNLP、NAACL、NeurIPS、ICML、ICLR、AAAI、IJCAI、KDD、WWW、SIGIR、ICSE、FSE、ASE 等，可作为质量线索；但不要把没有明确信息的论文说成已经录用。实验薄、baseline 不清、只有概念包装的论文要降低优先级。
 
-    需要降低优先级的方向：
-    - 纯 CV、纯图像生成、纯医学影像、纯机器人、纯语音、纯 diffusion、纯硬件加速
+    请严格中文输出，结构如下：
+    1. 先给我一个抓手：相关性判断、质量线索、一句话核心、阅读建议。
+    2. 想法怎么来的：用“观察 -> 问题 -> 可做切入点”解释。
+    3. 方法怎么落地：白话讲方法/系统/框架/benchmark，指出核心新意和工程组合部分。
+    4. 实验怎么设计：任务/数据集/benchmark、baseline、指标、消融、对照、鲁棒性、失败案例、成本分析分别支撑什么 claim。
+    5. 实验推出什么：哪些结论扎实，哪些只是初步现象，还缺什么关键实验。
+    6. 我能学什么：选题、方法落地、实验设计、写作或图表组织上的可学习点。
 
-    请严格用中文，按下面结构输出。可以写得全面一些，但要避免堆术语；每个部分尽量用普通研究生能看懂的话解释。不要编造论文没有的信息；如果当前文本里看不出实验细节，就明确说“当前文本没有足够信息”。
-
-    1. 先给我一个抓手
-    - 相关性判断：小同行 / 中同行 / 大同行 / 可忽略，并解释一句为什么。
-    - 一句话核心：这篇论文最主要在解决什么问题。
-    - 阅读建议：精读 / 泛读 / 存 Zotero / 忽略。
-
-    2. 这篇论文的想法是怎么来的
-    - 作者看到了什么现实问题、缺口或不方便的地方？
-    - 这个问题为什么值得做？它和 agent/tool/skill/workflow/evaluation 的哪一环有关？
-    - 如果我是作者，我可以怎样从这个观察自然地推到论文的研究问题？请用“观察 -> 问题 -> 可做的切入点”的方式解释。
-
-    3. 它把想法落成了什么方法
-    - 方法、系统、框架、benchmark 或训练/推理流程大概是什么。
-    - 核心机制用白话讲清楚，不要只复述术语。
-    - 它真正的新意在哪里？哪些部分只是工程组合？
-
-    4. 实验是怎么设计来支撑结论的
-    - 它用了什么任务、数据集、benchmark 或环境？
-    - baseline 是什么，为什么要和这些 baseline 比？
-    - 指标是什么，这些指标分别在证明什么？
-    - 有没有消融、对照组、鲁棒性测试、失败案例或成本分析？这些实验分别支撑哪条主张？
-    - 请特别说明：如果我想学习它的实验设计，可以学到哪种“从 claim 到 experiment”的套路。
-
-    5. 实验到底推出了什么
-    - 结果支持了哪些结论？
-    - 哪些结论比较扎实，哪些只是初步现象或可能依赖设置？
-    - 还有哪些关键实验如果补上，会让论文更有说服力？
-
-    6. 我能学什么
-    - 选题上可学习点。
-    - 方法落地上可学习点。
-    - 实验设计上可学习点。
-    - 写作或图表组织上可学习点。
-
-    输出长度：每篇可以比普通摘要更长，约 800-1200 中文字；先短后长，先容易懂，再展开解释。
+    不要编造论文没有的信息；如果当前文本看不出实验细节，就明确说“当前文本没有足够信息”。每篇约 800-1200 中文字，先短后长，先容易懂，再展开。
 
 source:
   arxiv:
+    mode: search
     category: ["cs.CL","cs.AI","cs.LG","cs.SE"]
-    include_cross_list: false
+    include_cross_list: true
+    lookback_days: 365
+    candidate_pool_size: 50
+    search_query: 'all:"LLM agent" OR all:"language agent" OR all:"tool use" OR all:"function calling" OR all:"tool learning" OR all:"skill learning" OR all:"agent benchmark" OR all:"agent evaluation" OR all:"workflow automation" OR all:"code agent" OR all:"multi-agent" OR all:"API schema" OR all:"tool schema" OR all:"ACL" OR all:"EMNLP" OR all:"NeurIPS" OR all:"ICML" OR all:"ICLR" OR all:"AAAI" OR all:"IJCAI" OR all:"ICSE" OR all:"FSE" OR all:"ASE"'
 
 executor:
   debug: ${oc.env:DEBUG,null}
