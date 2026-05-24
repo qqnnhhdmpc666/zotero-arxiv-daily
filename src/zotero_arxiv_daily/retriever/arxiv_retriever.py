@@ -128,6 +128,19 @@ class ArxivRetriever(BaseRetriever):
         if self.config.source.arxiv.category is None:
             raise ValueError("category must be specified for arxiv.")
 
+    def _debug_search_recent_papers(self, client: arxiv.Client) -> list[ArxivResult]:
+        categories = " OR ".join(f"cat:{category}" for category in self.config.source.arxiv.category)
+        interest_query = 'all:"LLM agent" OR all:"tool use" OR all:"function calling" OR all:"agent benchmark" OR all:"workflow automation" OR all:"code agent"'
+        query = f"({categories}) AND ({interest_query})"
+        logger.info(f"Debug mode RSS fallback: searching recent arXiv papers with query: {query}")
+        search = arxiv.Search(
+            query=query,
+            max_results=10,
+            sort_by=arxiv.SortCriterion.SubmittedDate,
+            sort_order=arxiv.SortOrder.Descending,
+        )
+        return list(client.results(search))
+
     def _retrieve_raw_papers(self) -> list[ArxivResult]:
         client = arxiv.Client(num_retries=10, delay_seconds=10)
         query = '+'.join(self.config.source.arxiv.category)
@@ -145,6 +158,8 @@ class ArxivRetriever(BaseRetriever):
         ]
         if self.config.executor.debug:
             all_paper_ids = all_paper_ids[:10]
+            if len(all_paper_ids) == 0:
+                return self._debug_search_recent_papers(client)
 
         # Get full information of each paper from arxiv api
         bar = tqdm(total=len(all_paper_ids))
