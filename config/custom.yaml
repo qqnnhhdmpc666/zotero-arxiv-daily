@@ -2,23 +2,26 @@ zotero:
   user_id: ${oc.env:ZOTERO_ID}
   api_key: ${oc.env:ZOTERO_KEY}
   include_path:
+    - "Skill Transfer/**"
+    - "Skill Learning/**"
     - "Agents/**"
     - "LLM Agents/**"
     - "Tool Use/**"
-    - "Skill Learning/**"
     - "Agent Evaluation/**"
   ignore_path:
     - "Ignore/**"
     - "Archive/**"
   interest_seed:
-    - title: "LLM agents and tool use"
-      abstract: "Large language model agents that use tools, APIs, function calling, tool schemas, execution feedback, planning, and workflow automation."
-    - title: "Tool learning and skill learning for agents"
-      abstract: "Reusable tools, skills, skill transfer, self-improving agents, self-evolving agents, and agents that improve through experience."
-    - title: "Agent evaluation and benchmarks"
-      abstract: "Benchmarks, reliability, failure analysis, execution mismatch, API schema mismatch, tool schema mismatch, and evaluation protocols for LLM agents."
-    - title: "Multi-agent and LLM systems"
-      abstract: "Multi-agent systems, agent workflows, LLM systems, orchestration, code agents, autonomous software engineering agents, and workflow automation."
+    - title: "Skill transfer and skill migration"
+      abstract: "Highest priority: agent skill transfer, skill migration, skill portability, reusable skills, cross-environment skill reuse, dependency mismatch, schema mismatch, harness mismatch, and adapting skills across tasks, tools, environments, or agent frameworks."
+    - title: "Skill self-evolution and self-improving agents"
+      abstract: "Highest priority: agents or skills that self-evolve, self-improve, learn from experience, revise workflows, improve tool use, or accumulate reusable procedural knowledge."
+    - title: "Agent transfer and agent self-evolution"
+      abstract: "High priority: transferring agents, policies, workflows, memories, tools, or capabilities across tasks and environments; agent adaptation, agent evolution, and reusable agent behavior."
+    - title: "Tool learning and workflow automation"
+      abstract: "Supporting priority: tool learning, function calling, tool schemas, workflow automation, API use, code agents, and LLM systems that help understand skill and agent transfer."
+    - title: "Agent evaluation and benchmarks as inspiration"
+      abstract: "Supporting priority: benchmarks and evaluations are useful mainly as inspiration for experiment design, baselines, metrics, failure analysis, and reliability claims, not as the main research direction."
 
 email:
   sender: ${oc.env:SENDER}
@@ -36,24 +39,22 @@ llm:
     max_tokens: 4096
   language: Chinese
   summary_prompt: |
-    你是一个中文论文导读助手，面向 LLM agents、tool use、skill learning、workflow automation、agent evaluation 方向。
-    请借鉴 paper-analysis 的思路，但不要写成高信息密度压缩摘要。先给一个很短的判断抓手，再用容易懂的话展开讲清楚：论文的想法从哪里来，怎么落成方法，实验怎么支撑结论。
+    你是中文论文导读助手。我的最高优先级依次是：技能迁移、技能自进化、智能体迁移、智能体自进化；其次才是 tool use、workflow automation、agent evaluation、benchmark 等相关方向。Benchmark 对我主要是实验设计启发，不是主线。
 
-    我的目标是学习两件事：
-    1. 一个研究想法如何变成可实现的方法、系统、benchmark 或实验设置。
-    2. 作者如何从 claim 设计 experiment：任务、数据集、baseline、指标、消融、对照组、失败分析分别支撑什么结论。
+    请借鉴 paper-analysis 的思路，但不要写成高信息密度压缩摘要。每篇先给一个“总领式论文画像”，再用容易懂的中文展开：想法从哪里来，怎么落成方法，实验怎么支撑结论。
 
-    质量判断：优先重视有明确任务、benchmark、baseline、指标、消融、失败分析、代码链接或顶会/期刊线索的论文。若文本出现 ACL、EMNLP、NAACL、NeurIPS、ICML、ICLR、AAAI、IJCAI、KDD、WWW、SIGIR、ICSE、FSE、ASE 等，可作为质量线索；但不要把没有明确信息的论文说成已经录用。实验薄、baseline 不清、只有概念包装的论文要降低优先级。
+    质量判断：优先重视有明确任务、baseline、指标、消融、失败分析、代码链接或顶会/期刊线索的论文。若文本出现 ACL、EMNLP、NAACL、NeurIPS、ICML、ICLR、AAAI、IJCAI、KDD、WWW、SIGIR、ICSE、FSE、ASE 等，可作为质量线索；但不要把没有明确信息的论文说成已经录用。
 
-    请严格中文输出，结构如下：
-    1. 先给我一个抓手：相关性判断、质量线索、一句话核心、阅读建议。
-    2. 想法怎么来的：用“观察 -> 问题 -> 可做切入点”解释。
-    3. 方法怎么落地：白话讲方法/系统/框架/benchmark，指出核心新意和工程组合部分。
+    请严格中文输出：
+    0. 总领式论文画像：用一小段话概括“问题-方法-实验-价值”的全貌，像 paper-analysis 的总览，但要好懂。
+    1. 抓手：相关性判断、质量线索、一句话核心、阅读建议。相关性判断时，技能迁移/技能自进化/智能体迁移/智能体自进化最高；benchmark 只算辅助启发。
+    2. 想法怎么来的：用“观察 -> 问题 -> 可做切入点”解释，说明它如何启发技能或智能体迁移/自进化研究。
+    3. 方法怎么落地：白话讲方法、系统、框架、benchmark 或流程，指出核心新意和工程组合部分。
     4. 实验怎么设计：任务/数据集/benchmark、baseline、指标、消融、对照、鲁棒性、失败案例、成本分析分别支撑什么 claim。
     5. 实验推出什么：哪些结论扎实，哪些只是初步现象，还缺什么关键实验。
-    6. 我能学什么：选题、方法落地、实验设计、写作或图表组织上的可学习点。
+    6. 我能学什么：选题、方法落地、实验设计、写作或图表组织上的可学习点；特别指出对技能迁移、技能自进化、智能体迁移或智能体自进化论文的启发。
 
-    不要编造论文没有的信息；如果当前文本看不出实验细节，就明确说“当前文本没有足够信息”。每篇约 800-1200 中文字，先短后长，先容易懂，再展开。
+    不要编造论文没有的信息；如果当前文本看不出实验细节，就明确说“当前文本没有足够信息”。每篇约 900-1300 中文字，先总领，再展开，尽量全面详细但保持好懂。
 
 source:
   arxiv:
@@ -62,7 +63,26 @@ source:
     include_cross_list: true
     lookback_days: 365
     candidate_pool_size: 50
-    search_query: 'all:"LLM agent" OR all:"language agent" OR all:"tool use" OR all:"function calling" OR all:"tool learning" OR all:"skill learning" OR all:"agent benchmark" OR all:"agent evaluation" OR all:"workflow automation" OR all:"code agent" OR all:"multi-agent" OR all:"API schema" OR all:"tool schema" OR all:"ACL" OR all:"EMNLP" OR all:"NeurIPS" OR all:"ICML" OR all:"ICLR" OR all:"AAAI" OR all:"IJCAI" OR all:"ICSE" OR all:"FSE" OR all:"ASE"'
+    per_query_results: 3
+    search_terms:
+      - 'all:"skill transfer"'
+      - 'all:"skill migration"'
+      - 'all:"skill portability"'
+      - 'all:"reusable skills"'
+      - 'all:"self-evolving agents"'
+      - 'all:"self-improving agents"'
+      - 'all:"agent transfer"'
+      - 'all:"agent adaptation"'
+      - 'all:"skill learning"'
+      - 'all:"tool learning"'
+      - 'all:"LLM agent"'
+      - 'all:"language agent"'
+      - 'all:"tool use"'
+      - 'all:"function calling"'
+      - 'all:"workflow automation"'
+      - 'all:"code agent"'
+      - 'all:"agent evaluation"'
+      - 'all:"agent benchmark"'
 
 executor:
   debug: ${oc.env:DEBUG,null}
