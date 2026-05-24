@@ -14,6 +14,7 @@ from typing import Any, Callable, TypeVar
 from loguru import logger
 import requests
 import re
+from datetime import datetime, timedelta, timezone
 
 T = TypeVar("T")
 
@@ -128,14 +129,27 @@ class ArxivRetriever(BaseRetriever):
         if self.config.source.arxiv.category is None:
             raise ValueError("category must be specified for arxiv.")
 
-    def _debug_search_recent_papers(self, client: arxiv.Client) -> list[ArxivResult]:
+    def _build_search_query(self) -> str:
         categories = " OR ".join(f"cat:{category}" for category in self.config.source.arxiv.category)
-        interest_query = 'all:"LLM agent" OR all:"tool use" OR all:"function calling" OR all:"agent benchmark" OR all:"workflow automation" OR all:"code agent"'
-        query = f"({categories}) AND ({interest_query})"
-        logger.info(f"Debug mode RSS fallback: searching recent arXiv papers with query: {query}")
+        interest_query = self.config.source.arxiv.get(
+            "search_query",
+            'all:"LLM agent" OR all:"tool use" OR all:"function calling" OR all:"agent benchmark" OR all:"workflow automation" OR all:"code agent"',
+        )
+        lookback_days = int(self.config.source.arxiv.get("lookback_days", 365))
+        end = datetime.now(timezone.utc)
+        start = end - timedelta(days=lookback_days)
+        date_query = f"submittedDate:[{start:%Y%m%d%H%M} TO {end:%Y%m%d%H%M}]"
+        return f"({categories}) AND ({interest_query}) AND {date_query}"
+
+    def _search_recent_papers(self, client: arxiv.Client) -> list[ArxivResult]:
+        query = self._build_search_query()
+        max_results = int(self.config.source.arxiv.get("candidate_pool_size", 50))
+        if self.config.executor.debug:
+            max_results = min(max_results, 10)
+        logger.info(f"arXiv search mode: searching rolling paper pool with query: {query}")
         search = arxiv.Search(
             query=query,
-            max_results=10,
+            max_results=max_results,
             sort_by=arxiv.SortCriterion.SubmittedDate,
             sort_order=arxiv.SortOrder.Descending,
         )
@@ -143,6 +157,10 @@ class ArxivRetriever(BaseRetriever):
 
     def _retrieve_raw_papers(self) -> list[ArxivResult]:
         client = arxiv.Client(num_retries=10, delay_seconds=10)
+        mode = self.config.source.arxiv.get("mode", "rss")
+        if mode == "search":
+            return self._search_recent_papers(client)
+
         query = '+'.join(self.config.source.arxiv.category)
         include_cross_list = self.config.source.arxiv.get("include_cross_list", False)
         # Get the latest paper from arxiv rss feed
@@ -159,7 +177,7 @@ class ArxivRetriever(BaseRetriever):
         if self.config.executor.debug:
             all_paper_ids = all_paper_ids[:10]
             if len(all_paper_ids) == 0:
-                return self._debug_search_recent_papers(client)
+                return self._search_recent_papers(client)
 
         # Get full information of each paper from arxiv api
         bar = tqdm(total=len(all_paper_ids))
