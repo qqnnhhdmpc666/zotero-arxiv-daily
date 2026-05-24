@@ -39,6 +39,7 @@ class Executor:
         }
         self.reranker = get_reranker_cls(config.executor.reranker)(config)
         self.openai_client = OpenAI(api_key=config.llm.api.key, base_url=config.llm.api.base_url)
+
     def fetch_zotero_corpus(self) -> list[CorpusPaper]:
         logger.info("Fetching zotero corpus")
         zot = zotero.Zotero(self.config.zotero.user_id, 'user', self.config.zotero.api_key)
@@ -61,6 +62,24 @@ class Executor:
             added_date=datetime.strptime(c['data']['dateAdded'], '%Y-%m-%dT%H:%M:%SZ'),
             paths=c['paths']
         ) for c in corpus]
+
+    def build_interest_seed_corpus(self) -> list[CorpusPaper]:
+        seeds = self.config.zotero.get("interest_seed", [])
+        if not seeds:
+            return []
+        now = datetime.utcnow()
+        corpus = [
+            CorpusPaper(
+                title=str(seed.get("title", "Research interest seed")),
+                abstract=str(seed.get("abstract", "")),
+                added_date=now,
+                paths=["interest_seed"],
+            )
+            for seed in seeds
+            if seed.get("abstract")
+        ]
+        logger.info(f"Using {len(corpus)} configured interest seed papers as fallback corpus")
+        return corpus
     
     def filter_corpus(self, corpus:list[CorpusPaper]) -> list[CorpusPaper]:
         if self.include_path_patterns:
@@ -94,7 +113,10 @@ class Executor:
         corpus = self.fetch_zotero_corpus()
         corpus = self.filter_corpus(corpus)
         if len(corpus) == 0:
-            logger.error(f"No zotero papers found. Please check your zotero settings:\n{self.config.zotero}")
+            logger.warning("No Zotero papers found after filtering; falling back to configured interest seeds.")
+            corpus = self.build_interest_seed_corpus()
+        if len(corpus) == 0:
+            logger.error(f"No zotero papers or interest seeds found. Please check your zotero settings:\n{self.config.zotero}")
             return
         all_papers = []
         for source, retriever in self.retrievers.items():
