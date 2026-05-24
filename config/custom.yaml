@@ -10,6 +10,15 @@ zotero:
   ignore_path:
     - "Ignore/**"
     - "Archive/**"
+  interest_seed:
+    - title: "LLM agents and tool use"
+      abstract: "Large language model agents that use external tools, APIs, function calling, tool schemas, execution feedback, planning, and workflow automation to solve complex tasks."
+    - title: "Tool learning and skill learning for agents"
+      abstract: "Methods for learning reusable tools, skills, skill transfer, self-improving agents, self-evolving agents, and agent systems that improve through experience."
+    - title: "Agent evaluation and benchmarks"
+      abstract: "Benchmarks, reliability studies, failure analysis, execution mismatch, API schema mismatch, tool schema mismatch, and evaluation protocols for LLM agents and code agents."
+    - title: "Multi-agent and LLM systems"
+      abstract: "Multi-agent systems, agent workflows, LLM systems, orchestration, code agents, autonomous software engineering agents, and workflow automation."
 
 email:
   sender: ${oc.env:SENDER}
