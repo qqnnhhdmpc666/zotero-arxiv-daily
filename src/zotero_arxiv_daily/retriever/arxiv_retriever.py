@@ -14,7 +14,6 @@ from typing import Any, Callable, TypeVar
 from loguru import logger
 import requests
 import re
-from datetime import datetime, timedelta, timezone
 
 T = TypeVar("T")
 
@@ -26,6 +25,21 @@ CODE_URL_RE = re.compile(
     r"anonymous\.4open\.science|paperswithcode\.com)/[^\s\]\)\}\"'<>]+",
     re.IGNORECASE,
 )
+DEFAULT_SEARCH_TERMS = [
+    'all:"LLM agent"',
+    'all:"language agent"',
+    'all:"tool use"',
+    'all:"function calling"',
+    'all:"tool learning"',
+    'all:"skill learning"',
+    'all:"agent benchmark"',
+    'all:"agent evaluation"',
+    'all:"workflow automation"',
+    'all:"code agent"',
+    'all:"multi-agent"',
+    'all:"API schema"',
+    'all:"tool schema"',
+]
 
 
 def _download_file(url: str, path: str) -> None:
@@ -129,41 +143,69 @@ class ArxivRetriever(BaseRetriever):
         if self.config.source.arxiv.category is None:
             raise ValueError("category must be specified for arxiv.")
 
-    def _build_search_query(self) -> str:
-        categories = " OR ".join(f"cat:{category}" for category in self.config.source.arxiv.category)
-        interest_query = self.config.source.arxiv.get(
-            "search_query",
-            'all:"LLM agent" OR all:"tool use" OR all:"function calling" OR all:"agent benchmark" OR all:"workflow automation" OR all:"code agent"',
-        )
-        lookback_days = int(self.config.source.arxiv.get("lookback_days", 365))
-        end = datetime.now(timezone.utc)
-        start = end - timedelta(days=lookback_days)
-        date_query = f"submittedDate:[{start:%Y%m%d%H%M} TO {end:%Y%m%d%H%M}]"
-        return f"({categories}) AND ({interest_query}) AND {date_query}"
+    def _category_query(self) -> str:
+        return " OR ".join(f"cat:{category}" for category in self.config.source.arxiv.category)
+
+    def _search_terms(self) -> list[str]:
+        terms = self.config.source.arxiv.get("search_terms")
+        if terms:
+            return [str(term) for term in terms]
+        query = self.config.source.arxiv.get("search_query")
+        if query:
+            return [term.strip() for term in str(query).split(" OR ") if term.strip()]
+        return DEFAULT_SEARCH_TERMS
 
     def _search_recent_papers(self, client: arxiv.Client) -> list[ArxivResult]:
-        query = self._build_search_query()
-        max_results = int(self.config.source.arxiv.get("candidate_pool_size", 50))
+        candidate_pool_size = int(self.config.source.arxiv.get("candidate_pool_size", 25))
+        per_query = int(self.config.source.arxiv.get("per_query_results", 3))
         if self.config.executor.debug:
-            max_results = min(max_results, 10)
-        logger.info(f"arXiv search mode: searching rolling paper pool with query: {query}")
+            candidate_pool_size = min(candidate_pool_size, 10)
+            per_query = min(per_query, 2)
+        category_query = self._category_query()
+        papers_by_url: dict[str, ArxivResult] = {}
+
+        for term in self._search_terms():
+            query = f"({category_query}) AND ({term})"
+            logger.info(f"arXiv search mode: querying {query}")
+            search = arxiv.Search(
+                query=query,
+                max_results=per_query,
+                sort_by=arxiv.SortCriterion.SubmittedDate,
+                sort_order=arxiv.SortOrder.Descending,
+            )
+            try:
+                for paper in client.results(search):
+                    papers_by_url[paper.entry_id] = paper
+                    if len(papers_by_url) >= candidate_pool_size:
+                        return list(papers_by_url.values())
+            except arxiv.HTTPError as exc:
+                logger.warning(f"arXiv query failed and will be skipped: {exc}")
+            sleep(5)
+
+        if papers_by_url:
+            return list(papers_by_url.values())
+
+        logger.warning("No papers found from interest terms; falling back to category-only recent search.")
         search = arxiv.Search(
-            query=query,
-            max_results=max_results,
+            query=f"({category_query})",
+            max_results=min(candidate_pool_size, 10),
             sort_by=arxiv.SortCriterion.SubmittedDate,
             sort_order=arxiv.SortOrder.Descending,
         )
-        return list(client.results(search))
+        try:
+            return list(client.results(search))
+        except arxiv.HTTPError as exc:
+            logger.warning(f"Category-only arXiv fallback failed: {exc}")
+            return []
 
     def _retrieve_raw_papers(self) -> list[ArxivResult]:
-        client = arxiv.Client(num_retries=10, delay_seconds=10)
+        client = arxiv.Client(num_retries=3, delay_seconds=5, page_size=5)
         mode = self.config.source.arxiv.get("mode", "rss")
         if mode == "search":
             return self._search_recent_papers(client)
 
         query = '+'.join(self.config.source.arxiv.category)
         include_cross_list = self.config.source.arxiv.get("include_cross_list", False)
-        # Get the latest paper from arxiv rss feed
         feed = feedparser.parse(f"https://rss.arxiv.org/atom/{query}")
         if 'Feed error for query' in feed.feed.title:
             raise Exception(f"Invalid ARXIV_QUERY: {query}.")
@@ -179,7 +221,6 @@ class ArxivRetriever(BaseRetriever):
             if len(all_paper_ids) == 0:
                 return self._search_recent_papers(client)
 
-        # Get full information of each paper from arxiv api
         bar = tqdm(total=len(all_paper_ids))
         max_batch_retries = 5
         batch_retry_delay = 30
