@@ -179,7 +179,11 @@ class Executor:
                 "title": paper.title,
                 "url": paper.url,
                 "pdf_url": paper.pdf_url,
+                "code_url": paper.code_url,
                 "source": paper.source,
+                "score": paper.score,
+                "abstract": paper.abstract,
+                "tldr": paper.tldr,
                 "recommended_at": today,
             })
 
