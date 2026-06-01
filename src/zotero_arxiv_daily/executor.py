@@ -3,9 +3,12 @@ from pyzotero import zotero
 from omegaconf import DictConfig, ListConfig
 from .utils import glob_match
 from .retriever import get_retriever_cls
-from .protocol import CorpusPaper
+from .protocol import CorpusPaper, Paper
 import random
+import json
+import os
 from datetime import datetime
+from pathlib import Path
 from .reranker import get_reranker_cls
 from .construct_email import render_email
 from .utils import send_email
@@ -108,6 +111,118 @@ class Executor:
             logger.info(f"Selected {len(corpus)} zotero papers:\n{samples}\n...")
         return corpus
 
+    def _parse_bool(self, value, default: bool = True) -> bool:
+        if value is None:
+            return default
+        if isinstance(value, bool):
+            return value
+        return str(value).strip().lower() in {"1", "true", "yes", "y", "on"}
+
+    def _history_path(self) -> Path:
+        return Path(self.config.executor.get("recommendation_history_path", ".github/recommendation_history.json"))
+
+    def _paper_history_key(self, paper: Paper) -> str:
+        return (paper.url or paper.pdf_url or paper.title).strip().lower()
+
+    def load_recommendation_history(self) -> set[str]:
+        history_path = self._history_path()
+        if not history_path.exists():
+            return set()
+        try:
+            history = json.loads(history_path.read_text(encoding="utf-8"))
+        except Exception as e:
+            logger.warning(f"Failed to read recommendation history {history_path}: {e}")
+            return set()
+
+        records = history.get("recommended", history if isinstance(history, list) else [])
+        keys = set()
+        for record in records:
+            if isinstance(record, str):
+                keys.add(record.strip().lower())
+            elif isinstance(record, dict) and record.get("key"):
+                keys.add(str(record["key"]).strip().lower())
+        logger.info(f"Loaded {len(keys)} previously recommended papers from {history_path}")
+        return keys
+
+    def save_recommendation_history(self, papers: list[Paper]) -> None:
+        history_path = self._history_path()
+        history_path.parent.mkdir(parents=True, exist_ok=True)
+        existing_records = []
+        if history_path.exists():
+            try:
+                history = json.loads(history_path.read_text(encoding="utf-8"))
+                existing_records = history.get("recommended", history if isinstance(history, list) else [])
+            except Exception as e:
+                logger.warning(f"Failed to load existing recommendation history before saving: {e}")
+
+        seen = set()
+        records = []
+        for record in existing_records:
+            key = None
+            if isinstance(record, str):
+                key = record.strip().lower()
+                record = {"key": key}
+            elif isinstance(record, dict) and record.get("key"):
+                key = str(record["key"]).strip().lower()
+            if key and key not in seen:
+                seen.add(key)
+                records.append(record)
+
+        today = datetime.utcnow().strftime("%Y-%m-%d")
+        for paper in papers:
+            key = self._paper_history_key(paper)
+            if key in seen:
+                continue
+            seen.add(key)
+            records.append({
+                "key": key,
+                "title": paper.title,
+                "url": paper.url,
+                "pdf_url": paper.pdf_url,
+                "source": paper.source,
+                "recommended_at": today,
+            })
+
+        history_path.write_text(
+            json.dumps({"recommended": records}, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+        logger.info(f"Saved {len(records)} recommendation history records to {history_path}")
+
+    def select_recommendations(self, papers: list[Paper]) -> list[Paper]:
+        max_paper_num = int(self.config.executor.max_paper_num)
+        if max_paper_num <= 0 or not papers:
+            return []
+
+        include_top = self._parse_bool(
+            self.config.executor.get("always_include_top_similarity", os.getenv("INCLUDE_TOP_SIMILARITY", True)),
+            default=True,
+        )
+        history = self.load_recommendation_history()
+        selected = []
+        candidates = papers
+
+        if include_top:
+            selected.append(papers[0])
+            candidates = papers[1:]
+            logger.info("Always including the top-similarity paper, even if it was recommended before.")
+
+        for paper in candidates:
+            if len(selected) >= max_paper_num:
+                break
+            key = self._paper_history_key(paper)
+            if key in history:
+                logger.info(f"Skip previously recommended paper: {paper.title}")
+                continue
+            selected.append(paper)
+
+        if len(selected) < min(max_paper_num, len(papers)):
+            logger.warning(
+                f"Selected {len(selected)} papers after de-duplication; "
+                "not filling the remaining slots with previously recommended papers."
+            )
+        return selected
+
     
     def run(self):
         corpus = self.fetch_zotero_corpus()
@@ -132,7 +247,7 @@ class Executor:
         if len(all_papers) > 0:
             logger.info("Reranking papers...")
             reranked_papers = self.reranker.rerank(all_papers, corpus)
-            reranked_papers = reranked_papers[:self.config.executor.max_paper_num]
+            reranked_papers = self.select_recommendations(reranked_papers)
             logger.info("Generating TLDR and affiliations...")
             for p in tqdm(reranked_papers):
                 p.generate_tldr(self.openai_client, self.config.llm)
@@ -144,3 +259,5 @@ class Executor:
         email_content = render_email(reranked_papers)
         send_email(self.config, email_content)
         logger.info("Email sent successfully")
+        if len(reranked_papers) > 0:
+            self.save_recommendation_history(reranked_papers)

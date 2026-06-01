@@ -1,6 +1,12 @@
 name: Send emails daily
 on:
   workflow_dispatch:
+    inputs:
+      include_top_similarity:
+        description: "Always include the top-similarity paper even if it was recommended before"
+        required: false
+        default: true
+        type: boolean
   schedule:
     # 01:00 UTC = 09:00 Asia/Singapore / Beijing
     - cron: '0 1 * * *'
@@ -8,6 +14,8 @@ on:
 jobs:
   calculate-and-send:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -25,6 +33,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_API_BASE: ${{ secrets.OPENAI_API_BASE }}
           CUSTOM_CONFIG: ${{ vars.CUSTOM_CONFIG }}
+          INCLUDE_TOP_SIMILARITY: ${{ github.event_name != 'workflow_dispatch' || inputs.include_top_similarity }}
         run: |
           if [ -n "$CUSTOM_CONFIG" ]; then
             printf "%b\n" "$CUSTOM_CONFIG" > config/custom.yaml
@@ -33,3 +42,16 @@ jobs:
             echo "Use checked-in config/custom.yaml."
           fi
           uv run src/zotero_arxiv_daily/main.py
+
+      - name: Commit recommendation history
+        if: always()
+        run: |
+          if [ -n "$(git status --porcelain .github/recommendation_history.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add .github/recommendation_history.json
+            git commit -m "chore: update recommendation history [skip ci]"
+            git push
+          else
+            echo "No recommendation history changes."
+          fi

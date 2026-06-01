@@ -88,5 +88,7 @@ executor:
   debug: ${oc.env:DEBUG,null}
   send_empty: false
   max_paper_num: 5
+  always_include_top_similarity: ${oc.env:INCLUDE_TOP_SIMILARITY,true}
+  recommendation_history_path: .github/recommendation_history.json
   source: ['arxiv']
   reranker: local

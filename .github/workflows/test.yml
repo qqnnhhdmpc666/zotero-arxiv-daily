@@ -1,6 +1,12 @@
 name: Test
 on:
   workflow_dispatch:
+    inputs:
+      include_top_similarity:
+        description: "Always include the top-similarity paper even if it was recommended before"
+        required: false
+        default: true
+        type: boolean
 
 jobs:
   calculate-and-send:
@@ -22,6 +28,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OPENAI_API_BASE: ${{ secrets.OPENAI_API_BASE }}
           CUSTOM_CONFIG: ${{ vars.CUSTOM_CONFIG }}
+          INCLUDE_TOP_SIMILARITY: ${{ inputs.include_top_similarity }}
         run: |
           export DEBUG=true
           if [ -n "$CUSTOM_CONFIG" ]; then
